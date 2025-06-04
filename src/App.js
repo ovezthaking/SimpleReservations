@@ -126,6 +126,9 @@ const PrinterScheduler = () => {
       });
       setShowForm(false);
       setConnected(true);
+      
+      // Wymuś odświeżenie danych
+      await fetchReservations();
 
     } catch (error) {
       console.error('Błąd zapisywania:', error);
@@ -155,6 +158,9 @@ const PrinterScheduler = () => {
 
       if (error) throw error;
       setConnected(true);
+      
+      // Wymuś odświeżenie danych
+      await fetchReservations();
     } catch (error) {
       console.error('Błąd usuwania:', error);
       alert('Wystąpił błąd podczas usuwania. Spróbuj ponownie.');
@@ -212,7 +218,7 @@ const PrinterScheduler = () => {
                 )}
               </div>
             </div>
-            <p className="text-gray-600">Prusa i3 MK3 - Sala 309</p>
+            <p className="text-gray-600">Prusa i3 MK3 - Gabinet</p>
           </div>
           <button
             onClick={() => setShowForm(true)}
