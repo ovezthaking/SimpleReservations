@@ -30,6 +30,31 @@ const PrinterScheduler = () => {
     }
   };
 
+  const checkTimeConflict = (newReservation, existingReservations, excludeId = null) => {
+    const newStart = new Date(`${newReservation.date} ${newReservation.startTime}`);
+    const newEndTime = calculateEndTime(newReservation.startTime, newReservation.duration);
+    const newEnd = new Date(`${newReservation.date} ${newEndTime}`);
+
+    return existingReservations.filter(res => {
+      if (excludeId && res.id === excludeId) return false; // Wyklucz edytowaną rezerwację
+      
+      const resStart = new Date(`${res.date} ${res.startTime}`);
+      const resEndTime = calculateEndTime(res.startTime, res.duration);
+      const resEnd = new Date(`${res.date} ${resEndTime}`);
+
+      // Sprawdź czy są w tym samym dniu i czy czasy się nakładają
+      return newReservation.date === res.date && (
+        (newStart < resEnd && newEnd > resStart)
+      );
+    });
+  };
+
+  const getConflicts = (reservation) => {
+    return checkTimeConflict(reservation, reservations, reservation.id);
+  };
+
+
+
   // Pobierz rezerwacje z bazy danych
   const fetchReservations = async () => {
     try {
@@ -93,6 +118,15 @@ const PrinterScheduler = () => {
     if (!formData.name || !formData.date || !formData.startTime || !formData.duration) {
       alert('Proszę wypełnić wszystkie wymagane pola');
       return;
+    }
+
+    // Sprawdź kolizje przed zapisaniem
+    const conflicts = checkTimeConflict(formData, reservations, editingId);
+    if (conflicts.length > 0) {
+      const conflictNames = conflicts.map(c => c.name).join(', ');
+      if (!window.confirm(`Uwaga! Ta rezerwacja koliduje z rezerwacją użytkownika: ${conflictNames}. Czy chcesz kontynuować?`)) {
+        return;
+      }
     }
 
     setLoading(true);
@@ -443,7 +477,11 @@ const PrinterScheduler = () => {
         ) : (
           <div className="space-y-4">
             {upcomingReservations.map((reservation) => (
-              <div key={reservation.id} className="border border-green-200 rounded-lg p-4 bg-green-50">
+              <div key={reservation.id} className={`border rounded-lg p-4 ${
+                getConflicts(reservation).length > 0 
+                  ? 'border-red-300 bg-red-50' 
+                  : 'border-green-200 bg-green-50'
+              }`}>
                 <div className="flex justify-between items-start">
                   <div className="flex-1">
                     <div className="flex items-center gap-4 mb-2">
@@ -456,8 +494,13 @@ const PrinterScheduler = () => {
                           {reservation.project}
                         </span>
                       )}
+                      {getConflicts(reservation).length > 0 && (
+                        <span className="text-xs bg-red-200 text-red-800 px-2 py-1 rounded flex items-center gap-1">
+                          ⚠️ Konflikt
+                        </span>
+                      )}
                     </div>
-                    
+
                     <div className="flex items-center gap-6 text-sm text-gray-600 mb-2">
                       <div className="flex items-center gap-1">
                         <Calendar size={14} />
@@ -471,6 +514,12 @@ const PrinterScheduler = () => {
                         </span>
                       </div>
                     </div>
+                    
+                    {getConflicts(reservation).length > 0 && (
+                      <div className="text-sm text-red-600 mb-2">
+                        <strong>Konflikt z:</strong> {getConflicts(reservation).map(c => c.name).join(', ')}
+                      </div>
+                    )}
                     
                     {reservation.notes && (
                       <p className="text-sm text-gray-600 italic">{reservation.notes}</p>
