@@ -212,7 +212,7 @@ const PrinterScheduler = () => {
                 )}
               </div>
             </div>
-            <p className="text-gray-600">Prusa i3 MK3 - Gabinet</p>
+            <p className="text-gray-600">Prusa i3 MK3 - Sala 309</p>
           </div>
           <button
             onClick={() => setShowForm(true)}
