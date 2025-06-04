@@ -16,6 +16,17 @@ const PrinterScheduler = () => {
     duration: '',
     notes: ''
   });
+
+  const isCurrentlyActive = (reservation) => {
+    const now = new Date();
+    const startTime = new Date(`${reservation.date} ${reservation.startTime}`);
+    const endTime = new Date(`${reservation.date} ${calculateEndTime(reservation.startTime, reservation.duration)}`);
+    
+    return now >= startTime && now <= endTime;
+  };
+
+
+
   const formatDuration = (duration) => {
     const durationFloat = parseFloat(duration);
     const hours = Math.floor(durationFloat);
@@ -254,6 +265,8 @@ const PrinterScheduler = () => {
   const getTodayDate = () => {
     return new Date().toISOString().split('T')[0];
   };
+
+  const currentReservation = reservations.find(res => isCurrentlyActive(res));
 
   const upcomingReservations = reservations.filter(res => {
     const resDate = new Date(`${res.date} ${res.startTime}`);
@@ -586,6 +599,72 @@ const PrinterScheduler = () => {
           </div>
         )}
       </div>
+
+      {/* Obecna rezerwacja */}
+      {currentReservation && (
+        <div className="bg-white rounded-lg shadow-lg p-6 mb-6">
+          <h2 className="text-xl font-bold mb-4 text-blue-700 flex items-center gap-2">
+            🔥 Obecna rezerwacja
+          </h2>
+          <div className="border-2 border-blue-300 rounded-lg p-4 bg-blue-50">
+            <div className="flex justify-between items-start">
+              <div className="flex-1">
+                <div className="flex items-center gap-4 mb-2">
+                  <div className="flex items-center gap-2">
+                    <User size={16} className="text-gray-600" />
+                    <span className="font-semibold text-lg">{currentReservation.name}</span>
+                  </div>
+                  {currentReservation.project && (
+                    <span className="text-sm bg-blue-200 text-blue-800 px-2 py-1 rounded">
+                      {currentReservation.project}
+                    </span>
+                  )}
+                  <span className="text-sm bg-green-200 text-green-800 px-2 py-1 rounded font-semibold">
+                    ✅ W TRAKCIE
+                  </span>
+                </div>
+
+                <div className="flex items-center gap-6 text-sm text-gray-600 mb-2">
+                  <div className="flex items-center gap-1">
+                    <Calendar size={14} />
+                    <span>{new Date(currentReservation.date).toLocaleDateString('pl-PL')}</span>
+                  </div>
+                  <div className="flex items-center gap-1">
+                    <Clock size={14} />
+                    <span>
+                      {currentReservation.startTime} - {calculateEndTime(currentReservation.startTime, currentReservation.duration)}
+                      {' '}({formatDuration(currentReservation.duration)})
+                    </span>
+                  </div>
+                </div>
+
+                {currentReservation.notes && (
+                  <p className="text-sm text-gray-600 italic">{currentReservation.notes}</p>
+                )}
+              </div>
+              
+              <div className="flex gap-2 ml-4">
+                <button
+                  onClick={() => handleEdit(currentReservation)}
+                  disabled={loading}
+                  className="text-blue-600 hover:text-blue-800 disabled:text-blue-400 p-1"
+                  title="Edytuj"
+                >
+                  <Edit size={16} />
+                </button>
+                <button
+                  onClick={() => handleDelete(currentReservation.id)}
+                  disabled={loading}
+                  className="text-red-600 hover:text-red-800 disabled:text-red-400 p-1"
+                  title="Usuń"
+                >
+                  <Trash2 size={16} />
+                </button>
+              </div>
+            </div>
+          </div>
+        </div>
+      )}
 
       {/* Historia rezerwacji */}
       {pastReservations.length > 0 && (
