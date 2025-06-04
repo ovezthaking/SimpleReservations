@@ -208,7 +208,7 @@ const PrinterScheduler = () => {
           <div>
             <div className="flex items-center gap-3 mb-2">
               <h1 className="text-3xl font-bold text-gray-800">
-                System Rezerwacji Drukarki 3D
+                Rezerwacja Drukarki 3D
               </h1>
               <div className="flex items-center gap-1">
                 {connected ? (
