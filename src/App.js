@@ -16,6 +16,19 @@ const PrinterScheduler = () => {
     duration: '',
     notes: ''
   });
+  const formatDuration = (duration) => {
+    const durationFloat = parseFloat(duration);
+    const hours = Math.floor(durationFloat);
+    const minutes = Math.round((durationFloat - hours) * 60);
+        
+    if (hours === 0) {
+      return `${minutes} min`;
+    } else if (minutes === 0) {
+      return `${hours} h`;
+    } else {
+      return `${hours} h ${minutes} min`;
+    }
+  };
 
   // Pobierz rezerwacje z bazy danych
   const fetchReservations = async () => {
@@ -43,6 +56,8 @@ const PrinterScheduler = () => {
         duration: item.duration.toString(),
         notes: item.notes || ''
       }));
+
+      
 
       setReservations(formattedData);
       setConnected(true);
@@ -92,7 +107,7 @@ const PrinterScheduler = () => {
             project: formData.project || null,
             date: formData.date,
             start_time: formData.startTime,
-            duration: parseInt(formData.duration),
+            duration: parseFloat(formData.duration),
             notes: formData.notes || null
           })
           .eq('id', editingId);
@@ -108,7 +123,7 @@ const PrinterScheduler = () => {
             project: formData.project || null,
             date: formData.date,
             start_time: formData.startTime,
-            duration: parseInt(formData.duration),
+            duration: parseFloat(formData.duration),
             notes: formData.notes || null
           });
 
@@ -172,8 +187,15 @@ const PrinterScheduler = () => {
 
   const calculateEndTime = (startTime, duration) => {
     const [hours, minutes] = startTime.split(':').map(Number);
-    const endHours = hours + parseInt(duration);
-    return `${endHours.toString().padStart(2, '0')}:${minutes.toString().padStart(2, '0')}`;
+    const durationFloat = parseFloat(duration);
+    const durationHours = Math.floor(durationFloat);
+    const durationMinutes = (durationFloat - durationHours) * 60;
+    
+    const totalMinutes = hours * 60 + minutes + durationHours * 60 + durationMinutes;
+    const endHours = Math.floor(totalMinutes / 60);
+    const endMinutes = totalMinutes % 60;
+    
+    return `${endHours.toString().padStart(2, '0')}:${endMinutes.toString().padStart(2, '0')}`;
   };
 
   const getTodayDate = () => {
@@ -304,7 +326,7 @@ const PrinterScheduler = () => {
                 </div>
 
                 <div>
-                  <label className="block text-sm font-medium mb-1">Czas trwania (godziny) *</label>
+                  <label className="block text-sm font-medium mb-1">Czas trwania *</label>
                   <select
                     value={formData.duration}
                     onChange={(e) => setFormData({...formData, duration: e.target.value})}
@@ -312,13 +334,53 @@ const PrinterScheduler = () => {
                     required
                   >
                     <option value="">Wybierz czas</option>
+                    <option value="0.25">15 minut</option>
+                    <option value="0.5">30 minut</option>
+                    <option value="0.75">45 minut</option>
                     <option value="1">1 godzina</option>
+                    <option value="1.25">1 godzina 15 minut</option>
+                    <option value="1.5">1 godzina 30 minut</option>
+                    <option value="1.75">1 godzina 45 minut</option>
                     <option value="2">2 godziny</option>
+                    <option value="2.25">2 godziny 15 minut</option>
+                    <option value="2.5">2 godziny 30 minut</option>
+                    <option value="2.75">2 godziny 45 minut</option>
                     <option value="3">3 godziny</option>
+                    <option value="3.25">3 godziny 15 minut</option>
+                    <option value="3.5">3 godziny 30 minut</option>
+                    <option value="3.75">3 godziny 45 minut</option>
                     <option value="4">4 godziny</option>
+                    <option value="4.25">4 godziny 15 minut</option>
+                    <option value="4.5">4 godziny 30 minut</option>
+                    <option value="4.75">4 godziny 45 minut</option>
                     <option value="5">5 godzin</option>
+                    <option value="5.25">5 godzin 15 minut</option>
+                    <option value="5.5">5 godzin 30 minut</option>
+                    <option value="5.75">5 godzin 45 minut</option>
                     <option value="6">6 godzin</option>
+                    <option value="6.25">6 godzin 15 minut</option>
+                    <option value="6.5">6 godzin 30 minut</option>
+                    <option value="6.75">6 godzin 45 minut</option>
+                    <option value="7">7 godzin</option>
+                    <option value="7.25">7 godzin 15 minut</option>
+                    <option value="7.5">7 godzin 30 minut</option>
+                    <option value="7.75">7 godzin 45 minut</option>
                     <option value="8">8 godzin</option>
+                    <option value="8.25">8 godzin 15 minut</option>
+                    <option value="8.5">8 godzin 30 minut</option>
+                    <option value="8.75">8 godzin 45 minut</option>
+                    <option value="9">9 godzin</option>
+                    <option value="9.25">9 godzin 15 minut</option>
+                    <option value="9.5">9 godzin 30 minut</option>
+                    <option value="9.75">9 godzin 45 minut</option>
+                    <option value="10">10 godzin</option>
+                    <option value="10.25">10 godzin 15 minut</option>
+                    <option value="10.5">10 godzin 30 minut</option>
+                    <option value="10.75">10 godzin 45 minut</option>
+                    <option value="11">11 godzin</option>
+                    <option value="11.25">11 godzin 15 minut</option>
+                    <option value="11.5">11 godzin 30 minut</option>
+                    <option value="11.75">11 godzin 45 minut</option>
                     <option value="12">12 godzin</option>
                   </select>
                 </div>
@@ -405,7 +467,7 @@ const PrinterScheduler = () => {
                         <Clock size={14} />
                         <span>
                           {reservation.startTime} - {calculateEndTime(reservation.startTime, reservation.duration)}
-                          ({reservation.duration}h)
+                          {' '}({formatDuration(reservation.duration)})
                         </span>
                       </div>
                     </div>
@@ -465,6 +527,7 @@ const PrinterScheduler = () => {
                       <span>{new Date(reservation.date).toLocaleDateString('pl-PL')}</span>
                       <span>
                         {reservation.startTime} - {calculateEndTime(reservation.startTime, reservation.duration)}
+                        {' '}({formatDuration(reservation.duration)})
                       </span>
                     </div>
                   </div>
