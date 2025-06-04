@@ -1,0 +1,493 @@
+import React, { useState, useEffect } from 'react';
+import { Calendar, Clock, User, Plus, Trash2, Edit, Save, X, Wifi, WifiOff } from 'lucide-react';
+import { supabase } from './supabaseClient';
+
+const PrinterScheduler = () => {
+  const [reservations, setReservations] = useState([]);
+  const [showForm, setShowForm] = useState(false);
+  const [editingId, setEditingId] = useState(null);
+  const [loading, setLoading] = useState(true);
+  const [connected, setConnected] = useState(true);
+  const [formData, setFormData] = useState({
+    name: '',
+    project: '',
+    date: '',
+    startTime: '',
+    duration: '',
+    notes: ''
+  });
+
+  // Pobierz rezerwacje z bazy danych
+  const fetchReservations = async () => {
+    try {
+      setLoading(true);
+      const { data, error } = await supabase
+        .from('reservations')
+        .select('*')
+        .order('date', { ascending: true })
+        .order('start_time', { ascending: true });
+
+      if (error) {
+        console.error('Błąd pobierania danych:', error);
+        setConnected(false);
+        return;
+      }
+
+      // Konwertuj format danych z bazy
+      const formattedData = data.map(item => ({
+        id: item.id,
+        name: item.name,
+        project: item.project || '',
+        date: item.date,
+        startTime: item.start_time,
+        duration: item.duration.toString(),
+        notes: item.notes || ''
+      }));
+
+      setReservations(formattedData);
+      setConnected(true);
+    } catch (error) {
+      console.error('Błąd połączenia:', error);
+      setConnected(false);
+    } finally {
+      setLoading(false);
+    }
+  };
+
+  // Pobierz dane przy starcie
+  useEffect(() => {
+    fetchReservations();
+
+    // Subskrypcja do zmian w czasie rzeczywistym
+    const subscription = supabase
+      .channel('reservations_channel')
+      .on('postgres_changes', 
+        { event: '*', schema: 'public', table: 'reservations' },
+        () => {
+          fetchReservations();
+        }
+      )
+      .subscribe();
+
+    return () => {
+      subscription.unsubscribe();
+    };
+  }, []);
+
+  const handleSubmit = async () => {
+    if (!formData.name || !formData.date || !formData.startTime || !formData.duration) {
+      alert('Proszę wypełnić wszystkie wymagane pola');
+      return;
+    }
+
+    setLoading(true);
+
+    try {
+      if (editingId) {
+        // Edycja istniejącej rezerwacji
+        const { error } = await supabase
+          .from('reservations')
+          .update({
+            name: formData.name,
+            project: formData.project || null,
+            date: formData.date,
+            start_time: formData.startTime,
+            duration: parseInt(formData.duration),
+            notes: formData.notes || null
+          })
+          .eq('id', editingId);
+
+        if (error) throw error;
+        setEditingId(null);
+      } else {
+        // Dodanie nowej rezerwacji
+        const { error } = await supabase
+          .from('reservations')
+          .insert({
+            name: formData.name,
+            project: formData.project || null,
+            date: formData.date,
+            start_time: formData.startTime,
+            duration: parseInt(formData.duration),
+            notes: formData.notes || null
+          });
+
+        if (error) throw error;
+      }
+
+      // Resetuj formularz
+      setFormData({
+        name: '',
+        project: '',
+        date: '',
+        startTime: '',
+        duration: '',
+        notes: ''
+      });
+      setShowForm(false);
+      setConnected(true);
+
+    } catch (error) {
+      console.error('Błąd zapisywania:', error);
+      alert('Wystąpił błąd podczas zapisywania. Spróbuj ponownie.');
+      setConnected(false);
+    } finally {
+      setLoading(false);
+    }
+  };
+
+  const handleEdit = (reservation) => {
+    setFormData(reservation);
+    setEditingId(reservation.id);
+    setShowForm(true);
+  };
+
+  const handleDelete = async (id) => {
+    if (!window.confirm('Czy na pewno chcesz usunąć tę rezerwację?')) return;
+
+    setLoading(true);
+
+    try {
+      const { error } = await supabase
+        .from('reservations')
+        .delete()
+        .eq('id', id);
+
+      if (error) throw error;
+      setConnected(true);
+    } catch (error) {
+      console.error('Błąd usuwania:', error);
+      alert('Wystąpił błąd podczas usuwania. Spróbuj ponownie.');
+      setConnected(false);
+    } finally {
+      setLoading(false);
+    }
+  };
+
+  const calculateEndTime = (startTime, duration) => {
+    const [hours, minutes] = startTime.split(':').map(Number);
+    const endHours = hours + parseInt(duration);
+    return `${endHours.toString().padStart(2, '0')}:${minutes.toString().padStart(2, '0')}`;
+  };
+
+  const getTodayDate = () => {
+    return new Date().toISOString().split('T')[0];
+  };
+
+  const upcomingReservations = reservations.filter(res => {
+    const resDate = new Date(`${res.date} ${res.startTime}`);
+    return resDate >= new Date();
+  });
+
+  const pastReservations = reservations.filter(res => {
+    const resDate = new Date(`${res.date} ${res.startTime}`);
+    return resDate < new Date();
+  });
+
+  if (loading && reservations.length === 0) {
+    return (
+      <div className="max-w-6xl mx-auto p-6 bg-gray-50 min-h-screen flex items-center justify-center">
+        <div className="text-center">
+          <div className="animate-spin rounded-full h-12 w-12 border-b-2 border-blue-600 mx-auto mb-4"></div>
+          <p className="text-gray-600">Ładowanie rezerwacji...</p>
+        </div>
+      </div>
+    );
+  }
+
+  return (
+    <div className="max-w-6xl mx-auto p-6 bg-gray-50 min-h-screen">
+      <div className="bg-white rounded-lg shadow-lg p-6 mb-6">
+        <div className="flex items-center justify-between mb-6">
+          <div>
+            <div className="flex items-center gap-3 mb-2">
+              <h1 className="text-3xl font-bold text-gray-800">
+                System Rezerwacji Drukarki 3D
+              </h1>
+              <div className="flex items-center gap-1">
+                {connected ? (
+                  <Wifi size={20} className="text-green-600" title="Połączony z bazą danych" />
+                ) : (
+                  <WifiOff size={20} className="text-red-600" title="Brak połączenia z bazą danych" />
+                )}
+              </div>
+            </div>
+            <p className="text-gray-600">Prusa i3 MK3 - Gabinet</p>
+          </div>
+          <button
+            onClick={() => setShowForm(true)}
+            disabled={loading}
+            className="bg-blue-600 hover:bg-blue-700 disabled:bg-blue-400 text-white px-6 py-3 rounded-lg flex items-center gap-2 transition-colors"
+          >
+            <Plus size={20} />
+            Nowa Rezerwacja
+          </button>
+        </div>
+
+        {/* Formularz rezerwacji */}
+        {showForm && (
+          <div className="fixed inset-0 bg-black bg-opacity-50 flex items-center justify-center z-50">
+            <div className="bg-white rounded-lg p-6 w-full max-w-md mx-4">
+              <div className="flex justify-between items-center mb-4">
+                <h2 className="text-xl font-bold">
+                  {editingId ? 'Edytuj Rezerwację' : 'Nowa Rezerwacja'}
+                </h2>
+                <button
+                  onClick={() => {
+                    setShowForm(false);
+                    setEditingId(null);
+                    setFormData({
+                      name: '',
+                      project: '',
+                      date: '',
+                      startTime: '',
+                      duration: '',
+                      notes: ''
+                    });
+                  }}
+                  className="text-gray-500 hover:text-gray-700"
+                >
+                  <X size={20} />
+                </button>
+              </div>
+
+              <div className="space-y-4">
+                <div>
+                  <label className="block text-sm font-medium mb-1">Imię i nazwisko *</label>
+                  <input
+                    type="text"
+                    value={formData.name}
+                    onChange={(e) => setFormData({...formData, name: e.target.value})}
+                    className="w-full p-2 border rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-transparent"
+                    required
+                  />
+                </div>
+
+                <div>
+                  <label className="block text-sm font-medium mb-1">Projekt</label>
+                  <input
+                    type="text"
+                    value={formData.project}
+                    onChange={(e) => setFormData({...formData, project: e.target.value})}
+                    className="w-full p-2 border rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-transparent"
+                    placeholder="Nazwa projektu"
+                  />
+                </div>
+
+                <div>
+                  <label className="block text-sm font-medium mb-1">Data *</label>
+                  <input
+                    type="date"
+                    value={formData.date}
+                    onChange={(e) => setFormData({...formData, date: e.target.value})}
+                    min={getTodayDate()}
+                    className="w-full p-2 border rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-transparent"
+                    required
+                  />
+                </div>
+
+                <div>
+                  <label className="block text-sm font-medium mb-1">Godzina rozpoczęcia *</label>
+                  <input
+                    type="time"
+                    value={formData.startTime}
+                    onChange={(e) => setFormData({...formData, startTime: e.target.value})}
+                    className="w-full p-2 border rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-transparent"
+                    required
+                  />
+                </div>
+
+                <div>
+                  <label className="block text-sm font-medium mb-1">Czas trwania (godziny) *</label>
+                  <select
+                    value={formData.duration}
+                    onChange={(e) => setFormData({...formData, duration: e.target.value})}
+                    className="w-full p-2 border rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-transparent"
+                    required
+                  >
+                    <option value="">Wybierz czas</option>
+                    <option value="1">1 godzina</option>
+                    <option value="2">2 godziny</option>
+                    <option value="3">3 godziny</option>
+                    <option value="4">4 godziny</option>
+                    <option value="5">5 godzin</option>
+                    <option value="6">6 godzin</option>
+                    <option value="8">8 godzin</option>
+                    <option value="12">12 godzin</option>
+                  </select>
+                </div>
+
+                <div>
+                  <label className="block text-sm font-medium mb-1">Uwagi</label>
+                  <textarea
+                    value={formData.notes}
+                    onChange={(e) => setFormData({...formData, notes: e.target.value})}
+                    className="w-full p-2 border rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-transparent"
+                    rows="2"
+                    placeholder="Materiał, ustawienia, dodatkowe informacje..."
+                  />
+                </div>
+
+                <div className="flex gap-3 pt-4">
+                  <button
+                    type="button"
+                    onClick={handleSubmit}
+                    disabled={loading}
+                    className="flex-1 bg-blue-600 hover:bg-blue-700 disabled:bg-blue-400 text-white py-2 px-4 rounded-lg flex items-center justify-center gap-2 transition-colors"
+                  >
+                    {loading ? (
+                      <div className="animate-spin rounded-full h-4 w-4 border-b-2 border-white"></div>
+                    ) : (
+                      <Save size={16} />
+                    )}
+                    {editingId ? 'Zapisz zmiany' : 'Dodaj rezerwację'}
+                  </button>
+                  <button
+                    type="button"
+                    onClick={() => {
+                      setShowForm(false);
+                      setEditingId(null);
+                      setFormData({
+                        name: '',
+                        project: '',
+                        date: '',
+                        startTime: '',
+                        duration: '',
+                        notes: ''
+                      });
+                    }}
+                    className="px-4 py-2 border border-gray-300 rounded-lg hover:bg-gray-50 transition-colors"
+                  >
+                    Anuluj
+                  </button>
+                </div>
+              </div>
+            </div>
+          </div>
+        )}
+      </div>
+
+      {/* Nadchodzące rezerwacje */}
+      <div className="bg-white rounded-lg shadow-lg p-6 mb-6">
+        <h2 className="text-xl font-bold mb-4 text-green-700">Nadchodzące Rezerwacje</h2>
+        {upcomingReservations.length === 0 ? (
+          <p className="text-gray-500 text-center py-8">Brak nadchodzących rezerwacji</p>
+        ) : (
+          <div className="space-y-4">
+            {upcomingReservations.map((reservation) => (
+              <div key={reservation.id} className="border border-green-200 rounded-lg p-4 bg-green-50">
+                <div className="flex justify-between items-start">
+                  <div className="flex-1">
+                    <div className="flex items-center gap-4 mb-2">
+                      <div className="flex items-center gap-2">
+                        <User size={16} className="text-gray-600" />
+                        <span className="font-semibold">{reservation.name}</span>
+                      </div>
+                      {reservation.project && (
+                        <span className="text-sm bg-blue-100 text-blue-800 px-2 py-1 rounded">
+                          {reservation.project}
+                        </span>
+                      )}
+                    </div>
+                    
+                    <div className="flex items-center gap-6 text-sm text-gray-600 mb-2">
+                      <div className="flex items-center gap-1">
+                        <Calendar size={14} />
+                        <span>{new Date(reservation.date).toLocaleDateString('pl-PL')}</span>
+                      </div>
+                      <div className="flex items-center gap-1">
+                        <Clock size={14} />
+                        <span>
+                          {reservation.startTime} - {calculateEndTime(reservation.startTime, reservation.duration)}
+                          ({reservation.duration}h)
+                        </span>
+                      </div>
+                    </div>
+                    
+                    {reservation.notes && (
+                      <p className="text-sm text-gray-600 italic">{reservation.notes}</p>
+                    )}
+                  </div>
+                  
+                  <div className="flex gap-2 ml-4">
+                    <button
+                      onClick={() => handleEdit(reservation)}
+                      disabled={loading}
+                      className="text-blue-600 hover:text-blue-800 disabled:text-blue-400 p-1"
+                      title="Edytuj"
+                    >
+                      <Edit size={16} />
+                    </button>
+                    <button
+                      onClick={() => handleDelete(reservation.id)}
+                      disabled={loading}
+                      className="text-red-600 hover:text-red-800 disabled:text-red-400 p-1"
+                      title="Usuń"
+                    >
+                      <Trash2 size={16} />
+                    </button>
+                  </div>
+                </div>
+              </div>
+            ))}
+          </div>
+        )}
+      </div>
+
+      {/* Historia rezerwacji */}
+      {pastReservations.length > 0 && (
+        <div className="bg-white rounded-lg shadow-lg p-6">
+          <h2 className="text-xl font-bold mb-4 text-gray-600">Historia Rezerwacji</h2>
+          <div className="space-y-3">
+            {pastReservations.map((reservation) => (
+              <div key={reservation.id} className="border border-gray-200 rounded-lg p-3 bg-gray-50 opacity-75">
+                <div className="flex justify-between items-start">
+                  <div className="flex-1">
+                    <div className="flex items-center gap-4 mb-1">
+                      <div className="flex items-center gap-2">
+                        <User size={14} className="text-gray-500" />
+                        <span className="font-medium text-gray-700">{reservation.name}</span>
+                      </div>
+                      {reservation.project && (
+                        <span className="text-xs bg-gray-200 text-gray-600 px-2 py-1 rounded">
+                          {reservation.project}
+                        </span>
+                      )}
+                    </div>
+                    
+                    <div className="flex items-center gap-4 text-xs text-gray-500">
+                      <span>{new Date(reservation.date).toLocaleDateString('pl-PL')}</span>
+                      <span>
+                        {reservation.startTime} - {calculateEndTime(reservation.startTime, reservation.duration)}
+                      </span>
+                    </div>
+                  </div>
+                  
+                  <button
+                    onClick={() => handleDelete(reservation.id)}
+                    disabled={loading}
+                    className="text-gray-400 hover:text-red-600 disabled:text-gray-300 p-1"
+                    title="Usuń z historii"
+                  >
+                    <Trash2 size={14} />
+                  </button>
+                </div>
+              </div>
+            ))}
+          </div>
+        </div>
+      )}
+
+      {!connected && (
+        <div className="fixed bottom-4 right-4 bg-red-100 border border-red-400 text-red-700 px-4 py-3 rounded-lg shadow-lg">
+          <div className="flex items-center gap-2">
+            <WifiOff size={16} />
+            <span className="text-sm">Brak połączenia z bazą danych</span>
+          </div>
+        </div>
+      )}
+    </div>
+  );
+};
+
+export default PrinterScheduler;
