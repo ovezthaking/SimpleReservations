@@ -50,8 +50,26 @@ const PrinterScheduler = () => {
   };
 
   const getConflicts = (reservation) => {
-    return checkTimeConflict(reservation, reservations, reservation.id);
+    const conflicts = checkTimeConflict(reservation, reservations, reservation.id);
+    
+    // Dodaj informację o priorytecie dla każdego konfliktu
+    return conflicts.map(conflict => ({
+      ...conflict,
+      isPriority: new Date(conflict.created_at || '1970-01-01') < new Date(reservation.created_at || '1970-01-01')
+    }));
   };
+
+  const hasPriority = (reservation) => {
+    const conflicts = getConflicts(reservation);
+    return conflicts.length > 0 && conflicts.every(c => !c.isPriority);
+  };
+
+  const isSecondary = (reservation) => {
+    const conflicts = getConflicts(reservation);
+    return conflicts.length > 0 && conflicts.some(c => c.isPriority);
+  };
+
+
 
 
 
@@ -79,7 +97,8 @@ const PrinterScheduler = () => {
         date: item.date,
         startTime: item.start_time,
         duration: item.duration.toString(),
-        notes: item.notes || ''
+        notes: item.notes || '',
+        created_at: item.created_at // Dodaj timestamp utworzenia
       }));
 
       
@@ -478,9 +497,11 @@ const PrinterScheduler = () => {
           <div className="space-y-4">
             {upcomingReservations.map((reservation) => (
               <div key={reservation.id} className={`border rounded-lg p-4 ${
-                getConflicts(reservation).length > 0 
-                  ? 'border-red-300 bg-red-50' 
-                  : 'border-green-200 bg-green-50'
+                isSecondary(reservation) 
+                  ? 'border-orange-300 bg-orange-50' 
+                  : getConflicts(reservation).length > 0 
+                    ? 'border-red-300 bg-red-50' 
+                    : 'border-green-200 bg-green-50'
               }`}>
                 <div className="flex justify-between items-start">
                   <div className="flex-1">
@@ -494,9 +515,14 @@ const PrinterScheduler = () => {
                           {reservation.project}
                         </span>
                       )}
-                      {getConflicts(reservation).length > 0 && (
+                      {hasPriority(reservation) && (
                         <span className="text-xs bg-red-200 text-red-800 px-2 py-1 rounded flex items-center gap-1">
-                          ⚠️ Konflikt
+                          ⚠️ Konflikt - Priorytet
+                        </span>
+                      )}
+                      {isSecondary(reservation) && (
+                        <span className="text-xs bg-orange-200 text-orange-800 px-2 py-1 rounded flex items-center gap-1">
+                          ⚠️ Konflikt - Drugorzędna
                         </span>
                       )}
                     </div>
@@ -516,11 +542,21 @@ const PrinterScheduler = () => {
                     </div>
                     
                     {getConflicts(reservation).length > 0 && (
-                      <div className="text-sm text-red-600 mb-2">
-                        <strong>Konflikt z:</strong> {getConflicts(reservation).map(c => c.name).join(', ')}
+                      <div className={`text-sm mb-2 ${isSecondary(reservation) ? 'text-orange-600' : 'text-red-600'}`}>
+                        {hasPriority(reservation) && (
+                          <div>
+                            <strong>🏆 Ma priorytet - konflikt z:</strong> {getConflicts(reservation).map(c => c.name).join(', ')}
+                            <div className="text-xs mt-1">Ta rezerwacja została dodana pierwsza</div>
+                          </div>
+                        )}
+                        {isSecondary(reservation) && (
+                          <div>
+                            <strong>⏰ Drugorzędna - konflikt z:</strong> {getConflicts(reservation).filter(c => c.isPriority).map(c => c.name).join(', ')}
+                            <div className="text-xs mt-1">Ta rezerwacja została dodana później</div>
+                          </div>
+                        )}
                       </div>
                     )}
-                    
                     {reservation.notes && (
                       <p className="text-sm text-gray-600 italic">{reservation.notes}</p>
                     )}
