@@ -1,12 +1,14 @@
 import React, { useState, useEffect } from 'react';
-import { Calendar, Clock, User, Plus, Trash2, Edit, Save, X, Wifi, WifiOff } from 'lucide-react';
+import { Calendar, Clock, User, Plus, Trash2, Edit, Save, X, Wifi, WifiOff, LogOut } from 'lucide-react';
 import { supabase } from './supabaseClient';
+import Auth from './Auth';
 
 const PrinterScheduler = () => {
+  const [user, setUser] = useState(null);
+  const [loading, setLoading] = useState(true);
   const [reservations, setReservations] = useState([]);
   const [showForm, setShowForm] = useState(false);
   const [editingId, setEditingId] = useState(null);
-  const [loading, setLoading] = useState(true);
   const [connected, setConnected] = useState(true);
   const [formData, setFormData] = useState({
     name: '',
@@ -16,6 +18,27 @@ const PrinterScheduler = () => {
     duration: '',
     notes: ''
   });
+
+  // sesja usera
+  useEffect(() => {
+    const getSession = async () => {
+      const { data: { session } } = await supabase.auth.getSession();
+      setUser(session?.user ?? null);
+      setLoading(false);
+    };
+
+    getSession();
+
+    // Zmiany w autoryzacji
+    const { data: { subscription } } = supabase.auth.onAuthStateChange(
+      async (event, session) => {
+        setUser(session?.user ?? null);
+        setLoading(false);
+      }
+    );
+
+    return () => subscription?.unsubscribe();
+  }, []);
 
   const isCurrentlyActive = (reservation) => {
     const now = new Date();
@@ -47,13 +70,12 @@ const PrinterScheduler = () => {
     const newEnd = new Date(`${newReservation.date} ${newEndTime}`);
 
     return existingReservations.filter(res => {
-      if (excludeId && res.id === excludeId) return false; // Wyklucz edytowaną rezerwację
+      if (excludeId && res.id === excludeId) return false;
       
       const resStart = new Date(`${res.date} ${res.startTime}`);
       const resEndTime = calculateEndTime(res.startTime, res.duration);
       const resEnd = new Date(`${res.date} ${resEndTime}`);
 
-      // Sprawdź czy są w tym samym dniu i czy czasy się nakładają
       return newReservation.date === res.date && (
         (newStart < resEnd && newEnd > resStart)
       );
@@ -63,7 +85,6 @@ const PrinterScheduler = () => {
   const getConflicts = (reservation) => {
     const conflicts = checkTimeConflict(reservation, reservations, reservation.id);
     
-    // Dodaj informację o priorytecie dla każdego konfliktu
     return conflicts.map(conflict => ({
       ...conflict,
       isPriority: new Date(conflict.created_at || '1970-01-01') < new Date(reservation.created_at || '1970-01-01')
@@ -100,7 +121,6 @@ const PrinterScheduler = () => {
         return;
       }
 
-      // Konwertuj format danych z bazy
       const formattedData = data.map(item => ({
         id: item.id,
         name: item.name,
@@ -109,10 +129,9 @@ const PrinterScheduler = () => {
         startTime: item.start_time,
         duration: item.duration.toString(),
         notes: item.notes || '',
-        created_at: item.created_at // Dodaj timestamp utworzenia
+        created_at: item.created_at,
+        user_id: item.user_id // Dodaj user_id
       }));
-
-      
 
       setReservations(formattedData);
       setConnected(true);
@@ -124,25 +143,27 @@ const PrinterScheduler = () => {
     }
   };
 
-  // Pobierz dane przy starcie
+  
+  // Pobierz dane przy starcie (gdy użytkownik jest zalogowany)
   useEffect(() => {
-    fetchReservations();
+    if (user) {
+      fetchReservations();
 
-    // Subskrypcja do zmian w czasie rzeczywistym
-    const subscription = supabase
-      .channel('reservations_channel')
-      .on('postgres_changes', 
-        { event: '*', schema: 'public', table: 'reservations' },
-        () => {
-          fetchReservations();
-        }
-      )
-      .subscribe();
+      const subscription = supabase
+        .channel('reservations_channel')
+        .on('postgres_changes', 
+          { event: '*', schema: 'public', table: 'reservations' },
+          () => {
+            fetchReservations();
+          }
+        )
+        .subscribe();
 
-    return () => {
-      subscription.unsubscribe();
-    };
-  }, []);
+      return () => {
+        subscription.unsubscribe();
+      };
+    }
+  }, [user]);
 
   const handleSubmit = async () => {
     if (!formData.name || !formData.date || !formData.startTime || !formData.duration) {
@@ -168,7 +189,6 @@ const PrinterScheduler = () => {
 
     try {
       if (editingId) {
-        // Edycja istniejącej rezerwacji
         const { error } = await supabase
           .from('reservations')
           .update({
@@ -179,12 +199,12 @@ const PrinterScheduler = () => {
             duration: parseFloat(formData.duration),
             notes: formData.notes || null
           })
-          .eq('id', editingId);
+          .eq('id', editingId)
+          .eq('user_id', user.id); // Tylko własne rezerwacje
 
         if (error) throw error;
         setEditingId(null);
       } else {
-        // Dodanie nowej rezerwacji
         const { error } = await supabase
           .from('reservations')
           .insert({
@@ -193,13 +213,13 @@ const PrinterScheduler = () => {
             date: formData.date,
             start_time: formData.startTime,
             duration: parseFloat(formData.duration),
-            notes: formData.notes || null
+            notes: formData.notes || null,
+            user_id: user.id // Przypisz do zalogowanego użytkownika
           });
 
         if (error) throw error;
       }
 
-      // Resetuj formularz
       setFormData({
         name: '',
         project: '',
@@ -224,12 +244,25 @@ const PrinterScheduler = () => {
   };
 
   const handleEdit = (reservation) => {
+    // Sprawdź czy użytkownik może edytować tę rezerwację
+    if (reservation.user_id !== user.id) {
+      alert('Możesz edytować tylko swoje rezerwacje!');
+      return;
+    }
     setFormData(reservation);
     setEditingId(reservation.id);
     setShowForm(true);
   };
 
   const handleDelete = async (id) => {
+    const reservation = reservations.find(r => r.id === id);
+    
+    // Sprawdź czy użytkownik może usunąć tę rezerwację
+    if (reservation.user_id !== user.id) {
+      alert('Możesz usuwać tylko swoje rezerwacje!');
+      return;
+    }
+
     if (!window.confirm('Czy na pewno chcesz usunąć tę rezerwację?')) return;
 
     setLoading(true);
@@ -238,12 +271,12 @@ const PrinterScheduler = () => {
       const { error } = await supabase
         .from('reservations')
         .delete()
-        .eq('id', id);
+        .eq('id', id)
+        .eq('user_id', user.id); // Tylko własne rezerwacje
 
       if (error) throw error;
       setConnected(true);
       
-      // Wymuś odświeżenie danych
       await fetchReservations();
     } catch (error) {
       console.error('Błąd usuwania:', error);
@@ -270,6 +303,15 @@ const PrinterScheduler = () => {
   const getTodayDate = () => {
     return new Date().toISOString().split('T')[0];
   };
+
+  const handleSignOut = async () => {
+    await supabase.auth.signOut();
+  };
+
+  // Pokaż komponent autoryzacji jeśli użytkownik nie jest zalogowany
+  if (!user) {
+    return <Auth />;
+  }
 
   const currentReservation = reservations.find(res => isCurrentlyActive(res));
 
@@ -313,17 +355,29 @@ const PrinterScheduler = () => {
             </div>
             <p className="text-gray-600">Prusa i3 MK3 - Sala 309</p>
             <p className="text-sm text-gray-500">
-                Drukarka dostępna od poniedziałku do piątku w godzinach 8:30 - 17:00
-              </p>
+              Drukarka dostępna od poniedziałku do piątku w godzinach 8:30 - 17:00
+            </p>
+            <p className="text-sm text-blue-600 mt-1">
+              Zalogowany jako: {user.user_metadata?.name || user.email}
+            </p>
           </div>
-          <button
-            onClick={() => setShowForm(true)}
-            disabled={loading}
-            className="bg-blue-600 hover:bg-blue-700 disabled:bg-blue-400 text-white px-6 py-3 rounded-lg flex items-center gap-2 transition-colors"
-          >
-            <Plus size={20} />
-            Nowa Rezerwacja
-          </button>
+          <div className="flex gap-3">
+            <button
+              onClick={() => setShowForm(true)}
+              disabled={loading}
+              className="bg-blue-600 hover:bg-blue-700 disabled:bg-blue-400 text-white px-6 py-3 rounded-lg flex items-center gap-2 transition-colors"
+            >
+              <Plus size={20} />
+              Nowa Rezerwacja
+            </button>
+            <button
+              onClick={handleSignOut}
+              className="bg-gray-600 hover:bg-gray-700 text-white px-4 py-3 rounded-lg flex items-center gap-2 transition-colors"
+            >
+              <LogOut size={16} />
+              Wyloguj
+            </button>
+          </div>
         </div>
 
         {/* Formularz rezerwacji */}
@@ -565,6 +619,11 @@ const PrinterScheduler = () => {
                       <div className="flex items-center gap-2">
                         <User size={16} className="text-gray-600" />
                         <span className="font-semibold">{reservation.name}</span>
+                        {reservation.user_id === user.id && (
+                          <span className="text-xs bg-red-100 text-red-700 px-2 py-1 rounded">
+                            Twoja
+                          </span>
+                        )}
                       </div>
                       {reservation.project && (
                         <span className="text-sm bg-blue-100 text-blue-800 px-2 py-1 rounded">
@@ -618,24 +677,27 @@ const PrinterScheduler = () => {
                     )}
                   </div>
                   
-                  <div className="flex gap-2 ml-4">
-                    <button
-                      onClick={() => handleEdit(reservation)}
-                      disabled={loading}
-                      className="text-blue-600 hover:text-blue-800 disabled:text-blue-400 p-1"
-                      title="Edytuj"
-                    >
-                      <Edit size={16} />
-                    </button>
-                    <button
-                      onClick={() => handleDelete(reservation.id)}
-                      disabled={loading}
-                      className="text-red-600 hover:text-red-800 disabled:text-red-400 p-1"
-                      title="Usuń"
-                    >
-                      <Trash2 size={16} />
-                    </button>
-                  </div>
+                  {/* Pokaż przyciski tylko dla własnych rezerwacji */}
+                  {reservation.user_id === user.id && (
+                    <div className="flex gap-2 ml-4">
+                      <button
+                        onClick={() => handleEdit(reservation)}
+                        disabled={loading}
+                        className="text-blue-600 hover:text-blue-800 disabled:text-blue-400 p-1"
+                        title="Edytuj"
+                      >
+                        <Edit size={16} />
+                      </button>
+                      <button
+                        onClick={() => handleDelete(reservation.id)}
+                        disabled={loading}
+                        className="text-red-600 hover:text-red-800 disabled:text-red-400 p-1"
+                        title="Usuń"
+                      >
+                        <Trash2 size={16} />
+                      </button>
+                    </div>
+                  )}
                 </div>
               </div>
             ))}
@@ -656,6 +718,11 @@ const PrinterScheduler = () => {
                   <div className="flex items-center gap-2">
                     <User size={16} className="text-gray-600" />
                     <span className="font-semibold text-lg">{currentReservation.name}</span>
+                    {currentReservation.user_id === user.id && (
+                          <span className="text-xs bg-red-100 text-red-700 px-2 py-1 rounded">
+                            Twoja
+                          </span>
+                        )}
                   </div>
                   {currentReservation.project && (
                     <span className="text-sm bg-blue-200 text-blue-800 px-2 py-1 rounded">
@@ -685,7 +752,9 @@ const PrinterScheduler = () => {
                   <p className="text-sm text-gray-600 italic">{currentReservation.notes}</p>
                 )}
               </div>
-              
+
+
+              {currentReservation.user_id === user.id && (
               <div className="flex gap-2 ml-4">
                 <button
                   onClick={() => handleEdit(currentReservation)}
@@ -704,6 +773,7 @@ const PrinterScheduler = () => {
                   <Trash2 size={16} />
                 </button>
               </div>
+              )}
             </div>
           </div>
         </div>
@@ -722,6 +792,11 @@ const PrinterScheduler = () => {
                       <div className="flex items-center gap-2">
                         <User size={14} className="text-gray-500" />
                         <span className="font-medium text-gray-700">{reservation.name}</span>
+                        {reservation.user_id === user.id && (
+                          <span className="text-xs bg-red-100 text-red-700 px-2 py-1 rounded">
+                            Twoja
+                          </span>
+                        )}
                       </div>
                       {reservation.project && (
                         <span className="text-xs bg-gray-200 text-gray-600 px-2 py-1 rounded">
