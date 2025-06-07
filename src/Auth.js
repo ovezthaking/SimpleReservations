@@ -1,10 +1,11 @@
 import React, { useState } from 'react';
 import { supabase } from './supabaseClient';
-import { Eye, EyeOff, User, Lock, Mail } from 'lucide-react';
+import { Eye, EyeOff, User, Lock, Mail, Github, Apple } from 'lucide-react';
 
 const Auth = () => {
   const [isLogin, setIsLogin] = useState(true);
   const [loading, setLoading] = useState(false);
+  const [oauthLoading, setOauthLoading] = useState(null);
   const [showPassword, setShowPassword] = useState(false);
   const [formData, setFormData] = useState({
     email: '',
@@ -43,6 +44,34 @@ const Auth = () => {
     }
   };
 
+  const handleOAuthSignIn = async (provider) => {
+    setOauthLoading(provider);
+
+    try {
+      const { error } = await supabase.auth.signInWithOAuth({
+        provider: provider,
+        options: {
+          redirectTo: window.location.origin
+        }
+      });
+      if (error) throw error;
+    } catch (error) {
+      alert(`Błąd logowania przez ${provider}: ${error.message}`);
+    } finally {
+      setOauthLoading(null);
+    }
+  };
+
+  // Ikona Microsoft (SVG)
+  const MicrosoftIcon = () => (
+    <svg width="16" height="16" viewBox="0 0 21 21" fill="currentColor">
+      <rect x="1" y="1" width="9" height="9" fill="#f25022"/>
+      <rect x="12" y="1" width="9" height="9" fill="#00a4ef"/>
+      <rect x="1" y="12" width="9" height="9" fill="#ffb900"/>
+      <rect x="12" y="12" width="9" height="9" fill="#7fba00"/>
+    </svg>
+  );
+
   return (
     <div className="min-h-screen bg-gray-50 flex items-center justify-center p-4">
       <div className="bg-white rounded-lg shadow-lg p-8 w-full max-w-md">
@@ -76,6 +105,56 @@ const Auth = () => {
           </button>
         </div>
 
+        {/* OAuth Buttons */}
+        <div className="space-y-3 mb-6">
+          <button
+            onClick={() => handleOAuthSignIn('github')}
+            disabled={oauthLoading !== null}
+            className="w-full bg-gray-900 hover:bg-gray-800 disabled:bg-gray-600 text-white py-2 px-4 rounded-lg flex items-center justify-center gap-2 transition-colors"
+          >
+            {oauthLoading === 'github' ? (
+              <div className="animate-spin rounded-full h-4 w-4 border-b-2 border-white"></div>
+            ) : (
+              <Github size={16} />
+            )}
+            Kontynuuj z GitHub
+          </button>
+
+          <button
+            onClick={() => handleOAuthSignIn('azure')}
+            disabled={oauthLoading !== null}
+            className="w-full bg-blue-600 hover:bg-blue-700 disabled:bg-blue-400 text-white py-2 px-4 rounded-lg flex items-center justify-center gap-2 transition-colors"
+          >
+            {oauthLoading === 'azure' ? (
+              <div className="animate-spin rounded-full h-4 w-4 border-b-2 border-white"></div>
+            ) : (
+              <MicrosoftIcon />
+            )}
+            Kontynuuj z Microsoft
+          </button>
+
+          <button
+            onClick={() => handleOAuthSignIn('apple')}
+            disabled={oauthLoading !== null}
+            className="w-full bg-black hover:bg-gray-800 disabled:bg-gray-600 text-white py-2 px-4 rounded-lg flex items-center justify-center gap-2 transition-colors"
+          >
+            {oauthLoading === 'apple' ? (
+              <div className="animate-spin rounded-full h-4 w-4 border-b-2 border-white"></div>
+            ) : (
+              <Apple size={16} />
+            )}
+            Kontynuuj z Apple
+          </button>
+        </div>
+
+        {/* Divider */}
+        <div className="relative flex items-center justify-center mb-6">
+          <div className="border-t border-gray-300 flex-grow"></div>
+          <span className="px-3 text-sm text-gray-500 bg-white">lub</span>
+          <div className="border-t border-gray-300 flex-grow"></div>
+        </div>
+
+        {/* Email/Password Form */}
         <form onSubmit={handleSubmit} className="space-y-4">
           {!isLogin && (
             <div>
@@ -137,7 +216,7 @@ const Auth = () => {
 
           <button
             type="submit"
-            disabled={loading}
+            disabled={loading || oauthLoading !== null}
             className="w-full bg-blue-600 hover:bg-blue-700 disabled:bg-blue-400 text-white py-2 px-4 rounded-lg flex items-center justify-center gap-2 transition-colors"
           >
             {loading ? (
@@ -154,6 +233,7 @@ const Auth = () => {
               <button
                 onClick={() => setIsLogin(false)}
                 className="text-blue-600 hover:text-blue-800"
+                disabled={loading || oauthLoading !== null}
               >
                 Zarejestruj się
               </button>
@@ -164,11 +244,18 @@ const Auth = () => {
               <button
                 onClick={() => setIsLogin(true)}
                 className="text-blue-600 hover:text-blue-800"
+                disabled={loading || oauthLoading !== null}
               >
                 Zaloguj się
               </button>
             </p>
           )}
+        </div>
+
+        <div className="mt-6 text-center">
+          <p className="text-xs text-gray-500">
+            Logując się, wyrażasz zgodę na nasze warunki korzystania z usługi
+          </p>
         </div>
       </div>
     </div>
