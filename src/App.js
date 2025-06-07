@@ -312,6 +312,9 @@ const PrinterScheduler = () => {
               </div>
             </div>
             <p className="text-gray-600">Prusa i3 MK3 - Sala 309</p>
+            <p className="text-sm text-gray-500">
+                Drukarka dostępna od poniedziałku do piątku w godzinach 8:30 - 17:00
+              </p>
           </div>
           <button
             onClick={() => setShowForm(true)}
