@@ -120,7 +120,7 @@ const Auth = () => {
             Kontynuuj z GitHub
           </button>
 
-          <button
+          {/* <button
             onClick={() => handleOAuthSignIn('azure')}
             disabled={oauthLoading !== null}
             className="w-full bg-blue-600 hover:bg-blue-700 disabled:bg-blue-400 text-white py-2 px-4 rounded-lg flex items-center justify-center gap-2 transition-colors"
@@ -144,7 +144,7 @@ const Auth = () => {
               <Apple size={16} />
             )}
             Kontynuuj z Apple
-          </button>
+          </button> */}
         </div>
 
         {/* Divider */}
