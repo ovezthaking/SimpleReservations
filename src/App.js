@@ -1,5 +1,5 @@
 import React, { useState, useEffect } from 'react';
-import { Calendar, Clock, User, Plus, Trash2, Edit, Save, X, Wifi, WifiOff, LogOut, LogIn } from 'lucide-react';
+import { Calendar, Clock, User, Plus, Trash2, Edit, Save, X, Wifi, WifiOff, LogOut, LogIn, Github, Mail } from 'lucide-react';
 import { supabase } from './supabaseClient';
 import Auth from './Auth';
 
@@ -911,6 +911,60 @@ const PrinterScheduler = () => {
           </div>
         </div>
       )}
+
+      {/* Footer */}
+      <footer className="bg-white rounded-lg shadow-lg p-6 mt-6">
+        <div className="flex flex-col items-center justify-center space-y-4">
+          <div className="flex items-center gap-1">
+            <img 
+              src="/logo_black.png" 
+              alt="OveZ Logo" 
+              className="size-20 rounded-lg"
+            />
+            <div className="text-center">
+              <p className="text-lg font-bold text-gray-800">OveZ</p>
+              <p className="text-sm text-gray-500">Developer</p>
+            </div>
+          </div>
+          
+          {/* Informacje */}
+          <div className="text-center text-sm text-gray-500 space-y-1">
+            <p>System rezerwacji drukarki 3D</p>
+            <p>© 2025 OveZ. Wszystkie prawa zastrzeżone.</p>
+            <p className="text-xs">
+              Zbudowane z ❤️ używając React + Supabase
+            </p>
+          </div>
+
+          <div className="flex items-center gap-4 pt-2">
+            <a 
+              href="https://github.com/ovezthaking" 
+              target="_blank" 
+              rel="noopener noreferrer"
+              className="text-gray-400 hover:text-gray-600 transition-colors"
+              title="GitHub"
+            >
+              <Github size={20} />
+            </a>
+            <a 
+              href="mailto:kontaktovez@gmail.com" 
+              className="text-gray-400 hover:text-gray-600 transition-colors"
+              title="Email"
+            >
+              <Mail size={20} />
+            </a>
+            <a 
+              href="https://linkedin.com/in/ovez" 
+              target="_blank" 
+              rel="noopener noreferrer"
+              className="text-gray-400 hover:text-gray-600 transition-colors"
+              title="LinkedIn"
+            >
+              <User size={20} />
+            </a>
+          </div>
+        </div>
+      </footer>
     </div>
   );
 };
