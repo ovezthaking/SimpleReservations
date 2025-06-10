@@ -8,7 +8,9 @@
 [![TailwindCSS](https://img.shields.io/badge/Styled%20with-Tailwind%20CSS-38B2AC?style=flat&logo=tailwind-css)](https://tailwindcss.com/)
 
 > 🚀 **Demo na żywo**: [https://simplereservations.vercel.app/](https://simplereservations.vercel.app/) 
-> 🚀 **Zainstaluj package**:   
+<br>
+> 🚀
+ **Zainstaluj package**:   
 ```bash
 npm i simplereservations
 ```
