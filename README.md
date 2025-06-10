@@ -7,8 +7,11 @@
 [![Supabase](https://img.shields.io/badge/Backend-Supabase-green?style=flat&logo=supabase)](https://supabase.com/)
 [![TailwindCSS](https://img.shields.io/badge/Styled%20with-Tailwind%20CSS-38B2AC?style=flat&logo=tailwind-css)](https://tailwindcss.com/)
 
-> 🚀 **Demo na żywo**: [https://simplereservations.vercel.app/](https://simplereservations.vercel.app/)
-> 🚀 **Demo na żywo**:  Zainstaluj package npm i simplereservations
+> 🚀 **Demo na żywo**: [https://simplereservations.vercel.app/](https://simplereservations.vercel.app/) 
+> 🚀 **Zainstaluj package**:   
+```bash
+npm i simplereservations
+```
 
 ## ✨ O projekcie
 
