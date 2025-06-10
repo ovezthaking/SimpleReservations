@@ -1,6 +1,6 @@
 import React, { useState } from 'react';
 import { supabase } from './supabaseClient';
-import { Eye, EyeOff, User, Lock, Mail, Github, Apple } from 'lucide-react';
+import { Eye, EyeOff, User, Lock, Mail, Github } from 'lucide-react';
 
 const Auth = () => {
   const [isLogin, setIsLogin] = useState(true);
@@ -62,15 +62,6 @@ const Auth = () => {
     }
   };
 
-  // Ikona Microsoft (SVG)
-  const MicrosoftIcon = () => (
-    <svg width="16" height="16" viewBox="0 0 21 21" fill="currentColor">
-      <rect x="1" y="1" width="9" height="9" fill="#f25022"/>
-      <rect x="12" y="1" width="9" height="9" fill="#00a4ef"/>
-      <rect x="1" y="12" width="9" height="9" fill="#ffb900"/>
-      <rect x="12" y="12" width="9" height="9" fill="#7fba00"/>
-    </svg>
-  );
 
   return (
     <div className="min-h-screen bg-gray-50 flex items-center justify-center p-4">

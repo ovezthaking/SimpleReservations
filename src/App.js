@@ -323,7 +323,7 @@ const PrinterScheduler = () => {
     const durationMinutes = (durationFloat - durationHours) * 60;
     
     const totalMinutes = hours * 60 + minutes + durationHours * 60 + durationMinutes;
-    const endHours = Math.floor(totalMinutes / 60);
+    const endHours = Math.floor(totalMinutes / 60) % 24;
     const endMinutes = totalMinutes % 60;
     
     return `${endHours.toString().padStart(2, '0')}:${endMinutes.toString().padStart(2, '0')}`;
@@ -967,6 +967,19 @@ const PrinterScheduler = () => {
       </footer>
     </div>
   );
+};
+
+export const calculateEndTime = (startTime, duration) => {
+  const [hours, minutes] = startTime.split(':').map(Number);
+  const durationFloat = parseFloat(duration);
+  const durationHours = Math.floor(durationFloat);
+  const durationMinutes = (durationFloat - durationHours) * 60;
+  
+  const totalMinutes = hours * 60 + minutes + durationHours * 60 + durationMinutes;
+  const endHours = Math.floor(totalMinutes / 60) % 24;
+  const endMinutes = totalMinutes % 60;
+  
+  return `${endHours.toString().padStart(2, '0')}:${endMinutes.toString().padStart(2, '0')}`;
 };
 
 export default PrinterScheduler;
