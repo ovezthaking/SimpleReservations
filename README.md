@@ -198,7 +198,7 @@ Oznacza to, że możesz swobodnie używać, modyfikować i dystrybuować ten kod
 
 ## 👥 Autorzy
 
-- **Twoje Imię** - *Główny deweloper* - [@TwojGitHub](https://github.com/TwojGitHub)
+- **Oliwer Urbaniak** - *Główny deweloper* - [@OveZThaKing](https://github.com/ovezthaking)
 
 ## 🙏 Podziękowania
 
